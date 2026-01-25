@@ -4,7 +4,7 @@ import io
 import os
 import re
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -1656,15 +1656,19 @@ def generate_report(report_path: str, root: str, items: List[EvidenceItem]):
     template = env.get_template("report.html.j2")
     threats = sum(1 for item in items if item.findings)
     locations = sum(1 for item in items if item.geoint_link)
-    for item in items:
-        item.thumbnail = image_to_thumbnail(item.path)
+    # Convert items to dictionaries for JSON serialization in template
+    items_as_dicts = [asdict(item) for item in items]
+    # Add top_severity (property) and thumbnail (generated on demand) to each dict
+    for i, item in enumerate(items):
+        items_as_dicts[i]['top_severity'] = item.top_severity
+        items_as_dicts[i]['thumbnail'] = image_to_thumbnail(item.path)
     html = template.render(
         generated=datetime.now().strftime("%Y-%m-%d %H:%M"),
         root=root,
         files_scanned=len(items),
         threats=threats,
         locations=locations,
-        items=items,
+        items=items_as_dicts,
     )
     with open(report_path, "w", encoding="utf-8") as handle:
         handle.write(html)

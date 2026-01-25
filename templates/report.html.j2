@@ -2,259 +2,959 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>V.I.G.I.L. Report</title>
     <style>
       :root {
         color-scheme: dark;
-        --bg: #060a12;
-        --panel: #0b1220;
-        --card: #0f172a;
-        --border: #1f2a44;
-        --accent: #22d3ee;
-        --accent-2: #a3e635;
-        --text: #e2e8f0;
-        --muted: #9aa4b2;
+        --bg: #030508;
+        --bg-gradient: linear-gradient(135deg, #030508 0%, #0a1628 50%, #030508 100%);
+        --panel: #0a0f1a;
+        --card: #0d1424;
+        --card-hover: #111a2e;
+        --border: #1a2744;
+        --border-glow: #00f0ff;
+        --accent: #00f0ff;
+        --accent-dim: rgba(0, 240, 255, 0.15);
+        --accent-2: #00ff9d;
+        --accent-3: #ff3366;
+        --text: #e8f0f8;
+        --text-dim: #8899aa;
+        --success: #00ff9d;
+        --warning: #ffaa00;
+        --danger: #ff3366;
+        --critical: #ff0044;
       }
+
       * {
         box-sizing: border-box;
-      }
-      body {
-        font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
         margin: 0;
-        background: radial-gradient(circle at top, #0b1220, #060a12 55%);
-        color: var(--text);
+        padding: 0;
       }
+
+      body {
+        font-family: 'Segoe UI', 'Inter', system-ui, -apple-system, sans-serif;
+        background: var(--bg);
+        background-image: var(--bg-gradient);
+        color: var(--text);
+        min-height: 100vh;
+        line-height: 1.5;
+      }
+
+      /* Scanline overlay effect */
+      body::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        background: repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 2px,
+          rgba(0, 240, 255, 0.01) 2px,
+          rgba(0, 240, 255, 0.01) 4px
+        );
+        z-index: 9999;
+      }
+
+      /* Grid pattern background */
+      body::after {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        background-image: 
+          linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+        background-size: 50px 50px;
+        z-index: -1;
+      }
+
       .container {
         display: grid;
-        grid-template-columns: 280px 1fr;
+        grid-template-columns: 300px 1fr;
         min-height: 100vh;
       }
+
+      /* Sidebar */
       .sidebar {
         padding: 24px;
-        background: rgba(8, 12, 20, 0.95);
+        background: linear-gradient(180deg, rgba(10, 15, 26, 0.98) 0%, rgba(5, 8, 15, 0.98) 100%);
         border-right: 1px solid var(--border);
         position: sticky;
         top: 0;
         height: 100vh;
         overflow-y: auto;
+        backdrop-filter: blur(10px);
       }
+
+      .sidebar::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .sidebar::-webkit-scrollbar-track {
+        background: var(--panel);
+      }
+
+      .sidebar::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 3px;
+      }
+
+      .logo-container {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 8px;
+      }
+
+      .logo-icon {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        font-weight: bold;
+        color: var(--bg);
+        box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
+      }
+
       .sidebar h1 {
-        font-size: 18px;
-        margin: 0 0 8px 0;
-        letter-spacing: 0.06em;
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: 0.15em;
+        background: linear-gradient(90deg, var(--accent), var(--accent-2));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
       }
+
       .subtitle {
-        font-size: 12px;
-        color: var(--muted);
+        font-size: 11px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.2em;
+        margin-bottom: 20px;
+      }
+
+      .header-line {
+        height: 1px;
+        background: linear-gradient(90deg, transparent, var(--accent), transparent);
+        margin: 16px 0;
+        box-shadow: 0 0 10px var(--accent);
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
         margin-bottom: 16px;
       }
+
       .stat {
-        margin: 10px 0;
-        padding: 12px;
-        background: var(--panel);
-        border-radius: 10px;
+        padding: 14px;
+        background: linear-gradient(135deg, var(--panel) 0%, rgba(0, 240, 255, 0.03) 100%);
+        border-radius: 12px;
         border: 1px solid var(--border);
-        font-size: 12px;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-dim);
+        transition: all 0.3s ease;
       }
-      .nav {
-        margin-top: 16px;
+
+      .stat:hover {
+        border-color: var(--accent);
+        box-shadow: 0 0 15px rgba(0, 240, 255, 0.1);
       }
-      .nav a {
+
+      .stat-value {
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--accent);
         display: block;
-        padding: 8px 10px;
-        margin-bottom: 6px;
+        margin-top: 4px;
+      }
+
+      .stat.full-width {
+        grid-column: 1 / -1;
+      }
+
+      .stat.meta-stat {
+        background: var(--panel);
+        font-size: 10px;
+        padding: 10px;
+      }
+
+      .stat.meta-stat .stat-value {
+        font-size: 11px;
+        word-break: break-all;
+        color: var(--text-dim);
+      }
+
+      .nav {
+        margin-top: 20px;
+      }
+
+      .nav-header {
+        font-size: 10px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .nav-header::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: var(--border);
+      }
+
+      .nav a {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        margin-bottom: 4px;
         border: 1px solid transparent;
         border-radius: 8px;
-        color: var(--text);
+        color: var(--text-dim);
         text-decoration: none;
         font-size: 12px;
+        transition: all 0.2s ease;
+        background: transparent;
       }
+
+      .nav a::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--border);
+        transition: all 0.2s ease;
+      }
+
       .nav a:hover {
         border-color: var(--accent);
         color: var(--accent);
+        background: var(--accent-dim);
       }
+
+      .nav a:hover::before {
+        background: var(--accent);
+        box-shadow: 0 0 10px var(--accent);
+      }
+
+      /* Main Content */
       .content {
-        padding: 28px;
+        padding: 32px;
+        overflow-x: hidden;
       }
+
+      .page-title {
+        font-size: 28px;
+        font-weight: 300;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .page-title span {
+        color: var(--accent);
+      }
+
+      /* Evidence Cards */
       .card {
-        background: var(--card);
+        background: linear-gradient(135deg, var(--card) 0%, rgba(13, 20, 36, 0.8) 100%);
         border: 1px solid var(--border);
-        border-radius: 14px;
-        padding: 16px;
-        margin-bottom: 16px;
-        display: grid;
-        grid-template-columns: 220px 1fr;
-        gap: 16px;
-        box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.1), 0 10px 30px rgba(0, 0, 0, 0.2);
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
       }
+
+      .card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, var(--accent), transparent);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      .card:hover {
+        border-color: rgba(0, 240, 255, 0.4);
+        box-shadow: 
+          0 0 30px rgba(0, 240, 255, 0.1),
+          inset 0 0 30px rgba(0, 240, 255, 0.02);
+        transform: translateY(-2px);
+      }
+
+      .card:hover::before {
+        opacity: 1;
+      }
+
       .thumb {
-        width: 220px;
-        height: 220px;
-        background: #0b1220;
-        border-radius: 10px;
+        width: 100%;
+        max-width: 400px;
+        height: 280px;
+        background: linear-gradient(135deg, #080c14 0%, #0a1018 100%);
+        border-radius: 12px;
         border: 1px solid var(--border);
         display: flex;
         align-items: center;
         justify-content: center;
+        overflow: hidden;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+        margin: 0 auto;
       }
+
+      .thumb::after {
+        content: 'Click to Enlarge';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 8px;
+        background: linear-gradient(transparent, rgba(0, 0, 0, 0.9));
+        color: var(--accent);
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        text-align: center;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      .thumb:hover {
+        border-color: var(--accent);
+        box-shadow: 0 0 20px rgba(0, 240, 255, 0.2);
+      }
+
+      .thumb:hover::after {
+        opacity: 1;
+      }
+
       .thumb img {
-        max-width: 210px;
-        max-height: 210px;
+        max-width: 100%;
+        max-height: 100%;
         border-radius: 8px;
+        object-fit: contain;
+        padding: 10px;
       }
+
+      .thumb .no-preview {
+        color: var(--text-dim);
+        font-size: 12px;
+      }
+
+      .card-content {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      /* Badges */
       .badges {
-        margin-bottom: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 4px;
       }
+
       .badge {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        padding: 4px 10px;
-        border-radius: 999px;
-        font-size: 12px;
-        margin-right: 6px;
-        background: #162033;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        background: rgba(26, 39, 68, 0.6);
         border: 1px solid var(--border);
+        transition: all 0.2s ease;
       }
+
+      .badge:hover {
+        transform: translateY(-1px);
+      }
+
       .severity-critical {
-        background: #450a0a;
-        border-color: #ef4444;
-        color: #fecaca;
+        background: linear-gradient(135deg, rgba(255, 0, 68, 0.2) 0%, rgba(255, 0, 68, 0.1) 100%);
+        border-color: var(--critical);
+        color: #ff6699;
+        box-shadow: 0 0 15px rgba(255, 0, 68, 0.2);
       }
+
       .severity-high {
-        background: #431407;
-        border-color: #f97316;
-        color: #fed7aa;
+        background: linear-gradient(135deg, rgba(255, 100, 50, 0.2) 0%, rgba(255, 100, 50, 0.1) 100%);
+        border-color: #ff6432;
+        color: #ffaa88;
       }
+
       .severity-medium {
-        background: #3b2f0b;
-        border-color: #facc15;
-        color: #fef3c7;
+        background: linear-gradient(135deg, rgba(255, 170, 0, 0.2) 0%, rgba(255, 170, 0, 0.1) 100%);
+        border-color: var(--warning);
+        color: #ffcc66;
       }
+
       .severity-low {
-        background: #052e16;
-        border-color: #22c55e;
-        color: #bbf7d0;
+        background: linear-gradient(135deg, rgba(0, 255, 157, 0.2) 0%, rgba(0, 255, 157, 0.1) 100%);
+        border-color: var(--success);
+        color: #66ffaa;
       }
-      .meta {
+
+      .file-path {
         font-size: 12px;
-        color: var(--muted);
+        color: var(--text-dim);
+        font-family: 'Consolas', 'Monaco', monospace;
+        padding: 8px 12px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 6px;
+        border-left: 2px solid var(--accent);
       }
-      .payload {
-        font-family: "Consolas", "Courier New", monospace;
-        background: #0a0f1a;
-        padding: 10px 12px;
+
+      /* Data sections */
+      .data-section {
+        padding: 12px 16px;
+        background: linear-gradient(135deg, rgba(0, 0, 0, 0.3) 0%, rgba(0, 240, 255, 0.02) 100%);
         border-radius: 10px;
+        border: 1px solid var(--border);
+        font-size: 13px;
+      }
+
+      .data-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--accent);
+        margin-bottom: 6px;
+        display: block;
+      }
+
+      .payload {
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 12px 14px;
+        border-radius: 8px;
         border: 1px solid var(--border);
         font-size: 12px;
         white-space: pre-wrap;
         word-break: break-word;
+        color: var(--accent-2);
+        margin: 8px 0;
       }
+
+      .location-link {
+        color: var(--accent);
+        text-decoration: none;
+        transition: all 0.2s ease;
+      }
+
+      .location-link:hover {
+        color: var(--accent-2);
+        text-shadow: 0 0 10px var(--accent);
+      }
+
+      /* Stego artifact */
+      .stego-artifact {
+        margin-top: 12px;
+        padding: 16px;
+        background: rgba(255, 0, 68, 0.05);
+        border: 1px solid rgba(255, 0, 68, 0.3);
+        border-radius: 10px;
+      }
+
+      .stego-artifact .thumb {
+        width: 100%;
+        max-width: 300px;
+        height: 200px;
+        margin: 12px auto 0 auto;
+      }
+
+      .stego-artifact .thumb img {
+        max-width: 100%;
+        max-height: 100%;
+        padding: 8px;
+      }
+
+      /* Details accordion */
       details {
-        margin-top: 10px;
-        padding: 8px 10px;
-        background: #0b1220;
+        margin-top: 12px;
         border-radius: 10px;
         border: 1px solid var(--border);
+        overflow: hidden;
+        background: var(--panel);
       }
+
       details summary {
         cursor: pointer;
-        color: var(--accent-2);
+        padding: 12px 16px;
+        color: var(--accent);
         font-size: 12px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        background: linear-gradient(135deg, rgba(0, 240, 255, 0.05) 0%, transparent 100%);
+        transition: all 0.2s ease;
+        list-style: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
       }
-      a {
+
+      details summary::-webkit-details-marker {
+        display: none;
+      }
+
+      details summary::before {
+        content: '+';
+        font-size: 16px;
+        font-weight: 300;
+        transition: transform 0.2s ease;
+      }
+
+      details[open] summary::before {
+        content: '-';
+      }
+
+      details summary:hover {
+        background: linear-gradient(135deg, rgba(0, 240, 255, 0.1) 0%, transparent 100%);
+      }
+
+      details ul {
+        padding: 16px;
+        margin: 0;
+        list-style: none;
+        border-top: 1px solid var(--border);
+      }
+
+      details li {
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(26, 39, 68, 0.5);
+        font-size: 12px;
+        color: var(--text-dim);
+      }
+
+      details li:last-child {
+        border-bottom: none;
+      }
+
+      details li strong {
+        color: var(--text);
+      }
+
+      /* Modal/Popup */
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.92);
+        backdrop-filter: blur(10px);
+        z-index: 10000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 40px;
+        animation: fadeIn 0.3s ease;
+      }
+
+      .modal-overlay.active {
+        display: flex;
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+
+      .modal-content {
+        background: linear-gradient(135deg, var(--card) 0%, #080c14 100%);
+        border: 1px solid var(--accent);
+        border-radius: 20px;
+        max-width: 1200px;
+        max-height: 90vh;
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr 400px;
+        overflow: hidden;
+        box-shadow: 
+          0 0 60px rgba(0, 240, 255, 0.2),
+          0 0 120px rgba(0, 240, 255, 0.1);
+        animation: slideUp 0.3s ease;
+      }
+
+      @keyframes slideUp {
+        from { 
+          opacity: 0;
+          transform: translateY(30px) scale(0.95);
+        }
+        to { 
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      .modal-image-container {
+        background: #000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        position: relative;
+        min-height: 400px;
+      }
+
+      .modal-image-container img {
+        max-width: 100%;
+        max-height: 70vh;
+        object-fit: contain;
+        border-radius: 8px;
+      }
+
+      .modal-details {
+        padding: 24px;
+        overflow-y: auto;
+        border-left: 1px solid var(--border);
+        background: var(--panel);
+      }
+
+      .modal-details::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .modal-details::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      .modal-details::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 3px;
+      }
+
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 20px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .modal-title {
+        font-size: 14px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
         color: var(--accent);
       }
-      .header-line {
-        height: 2px;
-        background: linear-gradient(90deg, transparent, var(--accent), transparent);
-        margin: 12px 0 18px 0;
+
+      .modal-close {
+        width: 36px;
+        height: 36px;
+        border: 1px solid var(--border);
+        background: transparent;
+        color: var(--text-dim);
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+      }
+
+      .modal-close:hover {
+        border-color: var(--accent-3);
+        color: var(--accent-3);
+        background: rgba(255, 51, 102, 0.1);
+      }
+
+      .modal-section {
+        margin-bottom: 20px;
+      }
+
+      .modal-section-title {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        color: var(--text-dim);
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .modal-section-title::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: var(--border);
+      }
+
+      .issue-item {
+        padding: 12px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 8px;
+        border-left: 3px solid var(--border);
+        margin-bottom: 10px;
+        font-size: 12px;
+      }
+
+      .issue-item.critical {
+        border-left-color: var(--critical);
+        background: rgba(255, 0, 68, 0.05);
+      }
+
+      .issue-item.high {
+        border-left-color: #ff6432;
+        background: rgba(255, 100, 50, 0.05);
+      }
+
+      .issue-item.medium {
+        border-left-color: var(--warning);
+        background: rgba(255, 170, 0, 0.05);
+      }
+
+      .issue-item.low {
+        border-left-color: var(--success);
+        background: rgba(0, 255, 157, 0.05);
+      }
+
+      .issue-severity {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        margin-bottom: 4px;
+      }
+
+      .issue-module {
+        color: var(--accent);
+        font-weight: 500;
+      }
+
+      .issue-details {
+        color: var(--text-dim);
+        margin-top: 6px;
+        word-break: break-word;
+      }
+
+      .modal-file-path {
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 11px;
+        color: var(--text-dim);
+        background: rgba(0, 0, 0, 0.3);
+        padding: 8px 12px;
+        border-radius: 6px;
+        word-break: break-all;
+      }
+
+      .no-issues {
+        color: var(--success);
+        font-size: 12px;
+        padding: 16px;
+        text-align: center;
+        background: rgba(0, 255, 157, 0.05);
+        border-radius: 8px;
+        border: 1px solid rgba(0, 255, 157, 0.2);
+      }
+
+      /* Responsive */
+      @media (max-width: 1200px) {
+        .modal-content {
+          grid-template-columns: 1fr;
+          max-height: 95vh;
+        }
+
+        .modal-image-container {
+          min-height: 300px;
+        }
+
+        .modal-details {
+          border-left: none;
+          border-top: 1px solid var(--border);
+          max-height: 40vh;
+        }
+      }
+
+      @media (max-width: 900px) {
+        .container {
+          grid-template-columns: 1fr;
+        }
+
+        .sidebar {
+          position: relative;
+          height: auto;
+        }
+
+        .thumb {
+          max-width: 100%;
+          height: 220px;
+        }
       }
     </style>
   </head>
   <body>
     <div class="container">
+      <!-- Sidebar -->
       <div class="sidebar">
-        <h1>V.I.G.I.L. FORENSICS</h1>
-        <div class="subtitle">Cyber evidence dashboard</div>
+        <div class="logo-container">
+          <div class="logo-icon">V</div>
+          <div>
+            <h1>V.I.G.I.L.</h1>
+          </div>
+        </div>
+        <div class="subtitle">Digital Forensics Dashboard</div>
         <div class="header-line"></div>
-        <div class="stat">Generated: {{ generated }}</div>
-        <div class="stat">Files Scanned: {{ files_scanned }}</div>
-        <div class="stat">Threats: {{ threats }}</div>
-        <div class="stat">Locations: {{ locations }}</div>
-        <div class="stat meta">Root: {{ root }}</div>
+
+        <div class="stats-grid">
+          <div class="stat">
+            Files Analyzed
+            <span class="stat-value">{{ files_scanned }}</span>
+          </div>
+          <div class="stat">
+            Threats Found
+            <span class="stat-value" style="color: {% if threats > 0 %}var(--danger){% else %}var(--success){% endif %};">{{ threats }}</span>
+          </div>
+          <div class="stat">
+            Locations
+            <span class="stat-value">{{ locations }}</span>
+          </div>
+          <div class="stat">
+            Generated
+            <span class="stat-value" style="font-size: 12px;">{{ generated }}</span>
+          </div>
+          <div class="stat meta-stat full-width">
+            Scan Root
+            <span class="stat-value">{{ root }}</span>
+          </div>
+        </div>
+
         <div class="nav">
-          <div class="meta">Jump to file</div>
+          <div class="nav-header">Evidence Files</div>
           {% for item in items %}
           <a href="#file-{{ loop.index }}">{{ item.rel_path }}</a>
           {% endfor %}
         </div>
       </div>
+
+      <!-- Main Content -->
       <div class="content">
+        <h2 class="page-title">Evidence <span>Analysis</span></h2>
+
         {% for item in items %}
         <div class="card" id="file-{{ loop.index }}">
-          <div class="thumb">
+          <div class="thumb" onclick="openModal({{ loop.index0 }})">
             {% if item.thumbnail %}
-            <img src="{{ item.thumbnail }}" alt="thumbnail" />
+            <img src="{{ item.thumbnail }}" alt="Evidence thumbnail" />
             {% else %}
-            <span class="meta">No preview</span>
+            <span class="no-preview">No Preview</span>
             {% endif %}
           </div>
-          <div>
+          <div class="card-content">
             <div class="badges">
               <span class="badge severity-{{ item.top_severity | lower }}">{{ item.top_severity }}</span>
               {% for finding in item.findings %}
               <span class="badge">{{ finding.module }}{% if finding.summary %}: {{ finding.summary }}{% endif %}</span>
               {% endfor %}
             </div>
-            <div class="meta">{{ item.rel_path }}</div>
-            <div>
+
+            <div class="file-path">{{ item.rel_path }}</div>
+
+            <div class="data-section">
               {% if item.ocr_snippet %}
-              <div class="payload"><strong>OCR:</strong> {{ item.ocr_snippet }}</div>
+              <span class="data-label">OCR Text Detected</span>
+              <div class="payload">{{ item.ocr_snippet }}</div>
               {% endif %}
+
               {% if item.qr_data %}
-              <div class="payload"><strong>QR:</strong> {{ item.qr_data }}</div>
+              <span class="data-label">QR Code Data</span>
+              <div class="payload">{{ item.qr_data }}</div>
               {% endif %}
+
               {% if item.vision_objects %}
-              <div><strong>Vision:</strong> {{ item.vision_objects | join(", ") }}</div>
+              <span class="data-label">Vision API Objects</span>
+              <div>{{ item.vision_objects | join(", ") }}</div>
               {% elif item.yolo_labels %}
-              <div><strong>YOLO:</strong> {{ item.yolo_labels | join(", ") }}</div>
+              <span class="data-label">YOLO Detection</span>
+              <div>{{ item.yolo_labels | join(", ") }}</div>
               {% endif %}
+
               {% if item.geoint_link %}
-              <div><strong>Location:</strong> <a href="{{ item.geoint_link }}">{{ item.geoint_link }}</a></div>
+              <span class="data-label">Geolocation</span>
+              <div><a href="{{ item.geoint_link }}" target="_blank" class="location-link">{{ item.geoint_link }}</a></div>
               {% endif %}
+
               {% if item.entropy %}
-              <div><strong>Entropy:</strong> {{ "%.2f"|format(item.entropy) }}</div>
+              <span class="data-label">Entropy Analysis</span>
+              <div>{{ "%.2f"|format(item.entropy) }}</div>
               {% endif %}
+
               {% if item.stego_message %}
-              <div class="payload"><strong>Hidden Message:</strong> {{ item.stego_message }}</div>
+              <span class="data-label">Hidden Message Decoded</span>
+              <div class="payload">{{ item.stego_message }}</div>
               {% elif item.stego_reason %}
-              <div class="payload"><strong>Critical Reason:</strong> {{ item.stego_reason }}</div>
+              <span class="data-label">Critical Finding</span>
+              <div class="payload">{{ item.stego_reason }}</div>
               {% elif item.stego_payload %}
-              <div class="payload"><strong>Technical Details:</strong> {{ item.stego_payload }}</div>
+              <span class="data-label">Technical Details</span>
+              <div class="payload">{{ item.stego_payload }}</div>
               {% endif %}
+
               {% if item.stego_artifact_thumbnail %}
-              <div>
-                <strong>Extracted Artifact:</strong>
-                <div class="thumb" style="margin-top: 8px;">
-                  <img src="{{ item.stego_artifact_thumbnail }}" alt="stego artifact" />
+              <div class="stego-artifact">
+                <span class="data-label">Extracted Artifact</span>
+                <div class="thumb" onclick="openModal({{ loop.index0 }})">
+                  <img src="{{ item.stego_artifact_thumbnail }}" alt="Extracted stego artifact" />
                 </div>
                 {% if item.stego_artifact_path %}
-                <div class="meta">{{ item.stego_artifact_path }}</div>
+                <div class="modal-file-path" style="margin-top: 8px;">{{ item.stego_artifact_path }}</div>
                 {% endif %}
               </div>
               {% endif %}
+
               {% if item.stego_ocr %}
-              <div class="payload"><strong>Stego OCR:</strong> {{ item.stego_ocr }}</div>
+              <span class="data-label">Stego OCR Text</span>
+              <div class="payload">{{ item.stego_ocr }}</div>
               {% endif %}
             </div>
+
             {% if item.findings %}
             <details>
-              <summary>Show detailed findings</summary>
+              <summary>Detailed Findings ({{ item.findings | length }})</summary>
               <ul>
                 {% for finding in item.findings %}
                 <li>
-                  <strong>{{ finding.severity }}</strong> - {{ finding.module }}:
+                  <strong style="color: {% if finding.severity == 'Critical' %}var(--critical){% elif finding.severity == 'High' %}#ff6432{% elif finding.severity == 'Medium' %}var(--warning){% else %}var(--success){% endif %};">{{ finding.severity }}</strong> 
+                  - <span style="color: var(--accent);">{{ finding.module }}</span>: 
                   {{ finding.details or finding.summary }}
                 </li>
                 {% endfor %}
@@ -266,5 +966,159 @@
         {% endfor %}
       </div>
     </div>
+
+    <!-- Modal Popup -->
+    <div class="modal-overlay" id="imageModal">
+      <div class="modal-content">
+        <div class="modal-image-container">
+          <img id="modalImage" src="" alt="Enlarged evidence" />
+        </div>
+        <div class="modal-details">
+          <div class="modal-header">
+            <span class="modal-title">Evidence Details</span>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+          </div>
+          
+          <div class="modal-section">
+            <div class="modal-section-title">File Path</div>
+            <div class="modal-file-path" id="modalFilePath"></div>
+          </div>
+
+          <div class="modal-section">
+            <div class="modal-section-title">Issues Detected</div>
+            <div id="modalIssues"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Store evidence data for modal using safe JSON encoding
+      const evidenceData = {{ items | tojson | safe }};
+
+      function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      function openModal(index) {
+        const item = evidenceData[index];
+        if (!item) {
+          console.error('No data found for index:', index);
+          return;
+        }
+        
+        const modal = document.getElementById('imageModal');
+        const modalImage = document.getElementById('modalImage');
+        const modalFilePath = document.getElementById('modalFilePath');
+        const modalIssues = document.getElementById('modalIssues');
+
+        // Set image
+        if (item.thumbnail) {
+          modalImage.src = item.thumbnail;
+          modalImage.style.display = 'block';
+        } else {
+          modalImage.style.display = 'none';
+        }
+
+        // Set file path
+        modalFilePath.textContent = item.rel_path || 'Unknown';
+
+        // Build issues HTML
+        let issuesHtml = '';
+        const findings = item.findings || [];
+        
+        if (findings.length > 0) {
+          findings.forEach(function(finding) {
+            const severityClass = (finding.severity || 'low').toLowerCase();
+            const severityColor = getSeverityColor(finding.severity);
+            issuesHtml += '<div class="issue-item ' + severityClass + '">' +
+              '<div class="issue-severity" style="color: ' + severityColor + ';">' + escapeHtml(finding.severity) + '</div>' +
+              '<div class="issue-module">' + escapeHtml(finding.module) + '</div>' +
+              '<div class="issue-details">' + escapeHtml(finding.details || finding.summary) + '</div>' +
+            '</div>';
+          });
+        } else {
+          issuesHtml = '<div class="no-issues">No issues detected in this file</div>';
+        }
+
+        // Add additional data if present
+        if (item.ocr_snippet) {
+          issuesHtml += '<div class="issue-item medium">' +
+            '<div class="issue-severity" style="color: var(--warning);">INFO</div>' +
+            '<div class="issue-module">OCR Text</div>' +
+            '<div class="issue-details">' + escapeHtml(item.ocr_snippet) + '</div>' +
+          '</div>';
+        }
+
+        if (item.qr_data) {
+          issuesHtml += '<div class="issue-item high">' +
+            '<div class="issue-severity" style="color: #ff6432;">DATA</div>' +
+            '<div class="issue-module">QR Code</div>' +
+            '<div class="issue-details">' + escapeHtml(item.qr_data) + '</div>' +
+          '</div>';
+        }
+
+        if (item.stego_message) {
+          issuesHtml += '<div class="issue-item critical">' +
+            '<div class="issue-severity" style="color: var(--critical);">HIDDEN</div>' +
+            '<div class="issue-module">Steganography</div>' +
+            '<div class="issue-details">' + escapeHtml(item.stego_message) + '</div>' +
+          '</div>';
+        }
+
+        if (item.geoint_link) {
+          issuesHtml += '<div class="issue-item medium">' +
+            '<div class="issue-severity" style="color: var(--warning);">LOCATION</div>' +
+            '<div class="issue-module">Geolocation</div>' +
+            '<div class="issue-details"><a href="' + escapeHtml(item.geoint_link) + '" target="_blank" class="location-link">' + escapeHtml(item.geoint_link) + '</a></div>' +
+          '</div>';
+        }
+
+        modalIssues.innerHTML = issuesHtml;
+
+        // Show modal
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+      }
+
+      function closeModal() {
+        const modal = document.getElementById('imageModal');
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+      }
+
+      function getSeverityColor(severity) {
+        if (!severity) return 'var(--text-dim)';
+        switch(severity.toLowerCase()) {
+          case 'critical': return 'var(--critical)';
+          case 'high': return '#ff6432';
+          case 'medium': return 'var(--warning)';
+          case 'low': return 'var(--success)';
+          default: return 'var(--text-dim)';
+        }
+      }
+
+      // Close modal on escape key
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+          closeModal();
+        }
+      });
+
+      // Close modal when clicking overlay background
+      document.getElementById('imageModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+          closeModal();
+        }
+      });
+
+      // Stop propagation on modal content to prevent closing when clicking inside
+      document.querySelector('.modal-content').addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    </script>
   </body>
 </html>
