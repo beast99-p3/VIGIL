@@ -1,0 +1,9 @@
+pytesseract
+opencv-python
+pyzbar
+ultralytics
+jinja2
+pillow
+exif
+scikit-image
+colorama
