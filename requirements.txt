@@ -7,3 +7,4 @@ pillow
 exif
 scikit-image
 colorama
+easyocr

@@ -4,105 +4,195 @@
     <meta charset="UTF-8" />
     <title>V.I.G.I.L. Report</title>
     <style>
+      :root {
+        color-scheme: dark;
+        --bg: #060a12;
+        --panel: #0b1220;
+        --card: #0f172a;
+        --border: #1f2a44;
+        --accent: #22d3ee;
+        --accent-2: #a3e635;
+        --text: #e2e8f0;
+        --muted: #9aa4b2;
+      }
+      * {
+        box-sizing: border-box;
+      }
       body {
-        font-family: Arial, sans-serif;
+        font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
         margin: 0;
-        background: #0f172a;
-        color: #e2e8f0;
+        background: radial-gradient(circle at top, #0b1220, #060a12 55%);
+        color: var(--text);
       }
       .container {
-        display: flex;
+        display: grid;
+        grid-template-columns: 280px 1fr;
         min-height: 100vh;
       }
       .sidebar {
-        width: 260px;
         padding: 24px;
-        background: #111827;
-        border-right: 1px solid #1f2937;
+        background: rgba(8, 12, 20, 0.95);
+        border-right: 1px solid var(--border);
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        overflow-y: auto;
       }
       .sidebar h1 {
-        font-size: 20px;
-        margin: 0 0 12px 0;
+        font-size: 18px;
+        margin: 0 0 8px 0;
+        letter-spacing: 0.06em;
+      }
+      .subtitle {
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 16px;
       }
       .stat {
-        margin: 12px 0;
+        margin: 10px 0;
         padding: 12px;
-        background: #0b1220;
+        background: var(--panel);
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        font-size: 12px;
+      }
+      .nav {
+        margin-top: 16px;
+      }
+      .nav a {
+        display: block;
+        padding: 8px 10px;
+        margin-bottom: 6px;
+        border: 1px solid transparent;
         border-radius: 8px;
+        color: var(--text);
+        text-decoration: none;
+        font-size: 12px;
+      }
+      .nav a:hover {
+        border-color: var(--accent);
+        color: var(--accent);
       }
       .content {
-        flex: 1;
-        padding: 24px;
+        padding: 28px;
       }
       .card {
-        background: #111827;
-        border: 1px solid #1f2937;
-        border-radius: 12px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
         padding: 16px;
         margin-bottom: 16px;
-        display: flex;
+        display: grid;
+        grid-template-columns: 220px 1fr;
         gap: 16px;
+        box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.1), 0 10px 30px rgba(0, 0, 0, 0.2);
       }
       .thumb {
-        width: 200px;
-        height: 200px;
+        width: 220px;
+        height: 220px;
         background: #0b1220;
-        border-radius: 8px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
         display: flex;
         align-items: center;
         justify-content: center;
       }
       .thumb img {
-        max-width: 200px;
-        max-height: 200px;
-        border-radius: 6px;
+        max-width: 210px;
+        max-height: 210px;
+        border-radius: 8px;
       }
       .badges {
-        margin-bottom: 8px;
+        margin-bottom: 10px;
       }
       .badge {
-        display: inline-block;
-        padding: 4px 8px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
         border-radius: 999px;
         font-size: 12px;
         margin-right: 6px;
-        background: #1f2937;
+        background: #162033;
+        border: 1px solid var(--border);
       }
       .severity-critical {
-        background: #dc2626;
+        background: #450a0a;
+        border-color: #ef4444;
+        color: #fecaca;
       }
       .severity-high {
-        background: #f97316;
+        background: #431407;
+        border-color: #f97316;
+        color: #fed7aa;
       }
       .severity-medium {
-        background: #facc15;
-        color: #111827;
+        background: #3b2f0b;
+        border-color: #facc15;
+        color: #fef3c7;
       }
       .severity-low {
-        background: #22c55e;
+        background: #052e16;
+        border-color: #22c55e;
+        color: #bbf7d0;
       }
       .meta {
         font-size: 12px;
-        color: #94a3b8;
+        color: var(--muted);
+      }
+      .payload {
+        font-family: "Consolas", "Courier New", monospace;
+        background: #0a0f1a;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        font-size: 12px;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      details {
+        margin-top: 10px;
+        padding: 8px 10px;
+        background: #0b1220;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+      }
+      details summary {
+        cursor: pointer;
+        color: var(--accent-2);
+        font-size: 12px;
       }
       a {
-        color: #38bdf8;
+        color: var(--accent);
+      }
+      .header-line {
+        height: 2px;
+        background: linear-gradient(90deg, transparent, var(--accent), transparent);
+        margin: 12px 0 18px 0;
       }
     </style>
   </head>
   <body>
     <div class="container">
       <div class="sidebar">
-        <h1>V.I.G.I.L. Report</h1>
+        <h1>V.I.G.I.L. FORENSICS</h1>
+        <div class="subtitle">Cyber evidence dashboard</div>
+        <div class="header-line"></div>
         <div class="stat">Generated: {{ generated }}</div>
         <div class="stat">Files Scanned: {{ files_scanned }}</div>
         <div class="stat">Threats: {{ threats }}</div>
         <div class="stat">Locations: {{ locations }}</div>
         <div class="stat meta">Root: {{ root }}</div>
+        <div class="nav">
+          <div class="meta">Jump to file</div>
+          {% for item in items %}
+          <a href="#file-{{ loop.index }}">{{ item.rel_path }}</a>
+          {% endfor %}
+        </div>
       </div>
       <div class="content">
         {% for item in items %}
-        <div class="card">
+        <div class="card" id="file-{{ loop.index }}">
           <div class="thumb">
             {% if item.thumbnail %}
             <img src="{{ item.thumbnail }}" alt="thumbnail" />
@@ -120,10 +210,10 @@
             <div class="meta">{{ item.rel_path }}</div>
             <div>
               {% if item.ocr_snippet %}
-              <div><strong>OCR:</strong> {{ item.ocr_snippet }}</div>
+              <div class="payload"><strong>OCR:</strong> {{ item.ocr_snippet }}</div>
               {% endif %}
               {% if item.qr_data %}
-              <div><strong>QR:</strong> {{ item.qr_data }}</div>
+              <div class="payload"><strong>QR:</strong> {{ item.qr_data }}</div>
               {% endif %}
               {% if item.yolo_labels %}
               <div><strong>YOLO:</strong> {{ item.yolo_labels | join(", ") }}</div>
@@ -134,16 +224,40 @@
               {% if item.entropy %}
               <div><strong>Entropy:</strong> {{ "%.2f"|format(item.entropy) }}</div>
               {% endif %}
+              {% if item.stego_message %}
+              <div class="payload"><strong>Hidden Message:</strong> {{ item.stego_message }}</div>
+              {% elif item.stego_reason %}
+              <div class="payload"><strong>Critical Reason:</strong> {{ item.stego_reason }}</div>
+              {% elif item.stego_payload %}
+              <div class="payload"><strong>Technical Details:</strong> {{ item.stego_payload }}</div>
+              {% endif %}
+              {% if item.stego_artifact_thumbnail %}
+              <div>
+                <strong>Extracted Artifact:</strong>
+                <div class="thumb" style="margin-top: 8px;">
+                  <img src="{{ item.stego_artifact_thumbnail }}" alt="stego artifact" />
+                </div>
+                {% if item.stego_artifact_path %}
+                <div class="meta">{{ item.stego_artifact_path }}</div>
+                {% endif %}
+              </div>
+              {% endif %}
+              {% if item.stego_ocr %}
+              <div class="payload"><strong>Stego OCR:</strong> {{ item.stego_ocr }}</div>
+              {% endif %}
             </div>
             {% if item.findings %}
-            <ul>
-              {% for finding in item.findings %}
-              <li>
-                <strong>{{ finding.severity }}</strong> - {{ finding.module }}:
-                {{ finding.details or finding.summary }}
-              </li>
-              {% endfor %}
-            </ul>
+            <details>
+              <summary>Show detailed findings</summary>
+              <ul>
+                {% for finding in item.findings %}
+                <li>
+                  <strong>{{ finding.severity }}</strong> - {{ finding.module }}:
+                  {{ finding.details or finding.summary }}
+                </li>
+                {% endfor %}
+              </ul>
+            </details>
             {% endif %}
           </div>
         </div>
