@@ -1,7 +1,5 @@
 # Project V.I.G.I.L.
 
-Image intelligence scanner for hackathon demos: OCR + QR + YOLO + GEOINT + Stego entropy.
-
 ## Milestones (Golden Path)
 
 1. **Phase 1: Skeleton + OCR**
