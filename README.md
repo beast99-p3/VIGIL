@@ -1,4 +1,4 @@
-# Project V.I.G.I.L.
+# Project V.I.G.I.L. - Visual Inspection, GEOINT & Intelligence Locator
 
 ## Milestones (Golden Path)
 
