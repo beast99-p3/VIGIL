@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vigil-scanner"
+version = "0.1.0"
+description = "V.I.G.I.L. image intelligence scanner"
+requires-python = ">=3.11"
+
+[project.scripts]
+vigil = "vigil.cli:main"
+
+[tool.setuptools]
+packages = ["vigil"]

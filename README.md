@@ -36,6 +36,70 @@ Optional:
 - `--yolo yolov8n.pt`
 - `--vision` / `--no-vision`
 - `--vision-score 0.4`
+- `--report-json report.json`
+- `--include "**/*.png"` (repeatable)
+- `--exclude "**/archive/*"` (repeatable)
+- `--min-severity Medium`
+- `--workers 4`
+- `--cache` / `--no-cache`
+
+Example with analyst filters and machine-readable export:
+
+```bash
+python main.py Evidence_Dump --report report.html --report-json report.json --min-severity Medium --exclude "**/tmp/*" --workers 4
+```
+
+## Project Structure (Refactor Foundation)
+
+- `main.py`: orchestration and CLI
+- `vigil/models.py`: shared data models (`Finding`, `EvidenceItem`)
+- `vigil/filters.py`: path and severity filters
+- `vigil/reporting.py`: summary aggregation helpers
+- `vigil/pipeline.py`: staging point for further scanner decomposition
+
+## Reporting Enhancements
+
+- HTML report now includes:
+   - Severity/module summary counters
+   - Confidence and evidence context per finding
+   - Incident timeline
+   - Critical-only one-click filter
+- JSON report contains full findings and summary metadata for automation/SIEM ingestion.
+
+## Performance Enhancements
+
+- Optional threaded scanning (`--workers N`)
+- Duplicate detection by file hash in a scan
+- Persistent scan cache in `.vigil_cache.json` (content-hash keyed)
+
+## Development
+
+Run tests:
+
+```bash
+pytest -q
+```
+
+Run integration smoke test only:
+
+```bash
+pytest -q -m integration
+```
+
+## Package CLI
+
+Run via package module:
+
+```bash
+python -m vigil Evidence_Dump --report report.html --report-json report.json
+```
+
+Install editable and use command directly:
+
+```bash
+pip install -e .
+vigil Evidence_Dump --report report.html --report-json report.json
+```
 
 ## Notes
 

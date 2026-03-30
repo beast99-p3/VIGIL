@@ -277,6 +277,72 @@
         color: var(--accent);
       }
 
+      .view-controls {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 18px;
+      }
+
+      .control-btn {
+        border: 1px solid var(--border);
+        background: rgba(0, 240, 255, 0.05);
+        color: var(--text);
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+
+      .control-btn.active {
+        border-color: var(--critical);
+        box-shadow: 0 0 12px rgba(255, 0, 68, 0.2);
+      }
+
+      .summary-row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 14px;
+      }
+
+      .summary-chip {
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font-size: 11px;
+        background: rgba(0, 0, 0, 0.35);
+      }
+
+      .timeline {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px;
+        background: rgba(0, 0, 0, 0.25);
+        margin-bottom: 20px;
+      }
+
+      .timeline h3 {
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--accent);
+        margin-bottom: 8px;
+      }
+
+      .timeline ul {
+        list-style: none;
+        display: grid;
+        gap: 8px;
+      }
+
+      .timeline li {
+        font-size: 12px;
+        color: var(--text-dim);
+        border-left: 2px solid var(--border);
+        padding-left: 10px;
+      }
+
       /* Evidence Cards */
       .card {
         background: linear-gradient(135deg, var(--card) 0%, rgba(13, 20, 36, 0.8) 100%);
@@ -856,6 +922,15 @@
             Scan Root
             <span class="stat-value">{{ root }}</span>
           </div>
+          <div class="stat meta-stat full-width">
+            Severity Mix
+            <span class="stat-value">
+              C {{ summary.by_severity.get('Critical', 0) }} |
+              H {{ summary.by_severity.get('High', 0) }} |
+              M {{ summary.by_severity.get('Medium', 0) }} |
+              L {{ summary.by_severity.get('Low', 0) }}
+            </span>
+          </div>
         </div>
 
         <div class="nav">
@@ -869,9 +944,32 @@
       <!-- Main Content -->
       <div class="content">
         <h2 class="page-title">Evidence <span>Analysis</span></h2>
+        <div class="view-controls">
+          <button id="criticalToggle" class="control-btn" onclick="toggleCriticalOnly()">Critical Only</button>
+          <button class="control-btn" onclick="resetFilters()">Show All</button>
+        </div>
+
+        <div class="summary-row">
+          {% for module, count in summary.by_module.items() %}
+          <div class="summary-chip">{{ module }}: <strong>{{ count }}</strong></div>
+          {% endfor %}
+        </div>
+
+        <div class="timeline">
+          <h3>Incident Timeline</h3>
+          <ul>
+            {% for event in timeline[:20] %}
+            <li>
+              <strong style="color: {% if event.severity == 'Critical' %}var(--critical){% elif event.severity == 'High' %}#ff6432{% elif event.severity == 'Medium' %}var(--warning){% else %}var(--success){% endif %};">{{ event.severity }}</strong>
+              | {{ event.module }} | {{ event.file }} | {{ event.summary }}
+              (confidence {{ "%.2f"|format(event.confidence) }})
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
 
         {% for item in items %}
-        <div class="card" id="file-{{ loop.index }}">
+        <div class="card" id="file-{{ loop.index }}" data-severity="{{ item.top_severity }}">
           <div class="thumb" onclick="openModal({{ loop.index0 }})">
             {% if item.thumbnail %}
             <img src="{{ item.thumbnail }}" alt="Evidence thumbnail" />
@@ -956,6 +1054,8 @@
                   <strong style="color: {% if finding.severity == 'Critical' %}var(--critical){% elif finding.severity == 'High' %}#ff6432{% elif finding.severity == 'Medium' %}var(--warning){% else %}var(--success){% endif %};">{{ finding.severity }}</strong> 
                   - <span style="color: var(--accent);">{{ finding.module }}</span>: 
                   {{ finding.details or finding.summary }}
+                  {% if finding.confidence %}| confidence {{ "%.2f"|format(finding.confidence) }}{% endif %}
+                  {% if finding.evidence %}| evidence {{ finding.evidence }}{% endif %}
                 </li>
                 {% endfor %}
               </ul>
@@ -1099,6 +1199,37 @@
           case 'low': return 'var(--success)';
           default: return 'var(--text-dim)';
         }
+      }
+
+      let criticalOnly = false;
+
+      function toggleCriticalOnly() {
+        criticalOnly = !criticalOnly;
+        const button = document.getElementById('criticalToggle');
+        if (criticalOnly) {
+          button.classList.add('active');
+        } else {
+          button.classList.remove('active');
+        }
+        applyCardFilter();
+      }
+
+      function resetFilters() {
+        criticalOnly = false;
+        document.getElementById('criticalToggle').classList.remove('active');
+        applyCardFilter();
+      }
+
+      function applyCardFilter() {
+        const cards = document.querySelectorAll('.card');
+        cards.forEach(function(card) {
+          if (!criticalOnly) {
+            card.style.display = '';
+            return;
+          }
+          const sev = (card.dataset.severity || '').toLowerCase();
+          card.style.display = sev === 'critical' ? '' : 'none';
+        });
       }
 
       // Close modal on escape key

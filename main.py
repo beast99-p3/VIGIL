@@ -1,10 +1,14 @@
 import argparse
 import base64
+import copy
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import hashlib
 import io
+import json
 import os
 import re
 import sys
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -67,6 +71,11 @@ try:
     from dotenv import load_dotenv
 except Exception:  # pragma: no cover
     load_dotenv = None
+
+from vigil.filters import apply_min_severity, path_allowed
+from vigil.models import EvidenceItem, Finding, SEVERITY_ORDER
+from vigil.pipeline import analyze_file
+from vigil.reporting import build_summary
 
 
 SUPPORTED_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".tiff"}
@@ -328,7 +337,6 @@ DEFAULT_BIP39 = {
 }
 
 
-SEVERITY_ORDER = {"Critical": 3, "High": 2, "Medium": 1, "Low": 0}
 YOLO_TARGETS = {"cell phone", "laptop", "credit card", "handbag", "backpack"}
 VISION_KEYWORDS = {
     "credit card": "High",
@@ -345,39 +353,7 @@ VISION_KEYWORDS = {
     "weapon": "High",
 }
 
-
-@dataclass
-class Finding:
-    module: str
-    severity: str
-    summary: str
-    details: Optional[str] = None
-
-
-@dataclass
-class EvidenceItem:
-    path: str
-    rel_path: str
-    findings: List[Finding] = field(default_factory=list)
-    ocr_snippet: Optional[str] = None
-    qr_data: Optional[str] = None
-    vision_objects: List[str] = field(default_factory=list)
-    vision_labels: List[str] = field(default_factory=list)
-    geoint_link: Optional[str] = None
-    entropy: Optional[float] = None
-    stego_payload: Optional[str] = None
-    stego_message: Optional[str] = None
-    stego_reason: Optional[str] = None
-    stego_artifact_path: Optional[str] = None
-    stego_artifact_thumbnail: Optional[str] = None
-    stego_ocr: Optional[str] = None
-    yolo_labels: List[str] = field(default_factory=list)
-
-    @property
-    def top_severity(self) -> str:
-        if not self.findings:
-            return "Low"
-        return max(self.findings, key=lambda f: SEVERITY_ORDER[f.severity]).severity
+DEFAULT_CONFIDENCE = {"Critical": 0.95, "High": 0.8, "Medium": 0.65, "Low": 0.5}
 
 
 def normalize_words(text: str) -> List[str]:
@@ -530,6 +506,9 @@ def run_ocr(image_bgr, bip39_words: set, enabled: bool) -> Tuple[Optional[str], 
                 severity="Critical",
                 summary=summary,
                 details=details,
+                detector="OCR",
+                confidence=0.9,
+                evidence=(details or summary)[:240],
             )
         )
     snippet = text.strip().replace("\n", " ")
@@ -580,6 +559,9 @@ def run_qr(image_bgr) -> Tuple[Optional[str], List[Finding]]:
             severity=severity,
             summary="QR code found",
             details=f"{details}: {payload[:200]}",
+            detector="QR",
+            confidence=0.92,
+            evidence=payload[:200],
         )
     )
     if len(payloads) > 1:
@@ -589,6 +571,9 @@ def run_qr(image_bgr) -> Tuple[Optional[str], List[Finding]]:
                 severity="Low",
                 summary="Multiple QR payloads",
                 details=f"Count: {len(payloads)}",
+                detector="QR",
+                confidence=0.7,
+                evidence=f"Payload count: {len(payloads)}",
             )
         )
     return payload, findings
@@ -627,6 +612,9 @@ def run_yolo(model, image_path: str, conf: float, imgsz: int) -> Tuple[List[str]
                         severity="Medium",
                         summary="Object detected",
                         details=name,
+                        detector="YOLO",
+                        confidence=0.7,
+                        evidence=name,
                     )
                 )
     return sorted(set(labels)), findings
@@ -710,6 +698,9 @@ def run_vision(
                         severity=severity,
                         summary="Text/QR content found",
                         details=f"{details}: {payload[:200]}",
+                        detector="GOOGLE_VISION",
+                        confidence=0.85,
+                        evidence=payload[:200],
                     )
                 )
 
@@ -735,6 +726,9 @@ def run_vision(
                         severity=severity,
                         summary="Object detected",
                         details=f"{name} ({obj.score:.2f})",
+                        detector="GOOGLE_VISION",
+                        confidence=float(obj.score),
+                        evidence=name,
                     )
                 )
 
@@ -756,6 +750,9 @@ def run_vision(
                     severity=severity,
                     summary="Label detected",
                     details=f"{name} ({label.score:.2f})",
+                    detector="GOOGLE_VISION",
+                    confidence=float(label.score),
+                    evidence=name,
                 )
             )
             if name not in objects:
@@ -838,6 +835,9 @@ def run_geoint(path: str) -> Tuple[Optional[str], List[Finding]]:
                 severity="Medium",
                 summary="Location data found",
                 details=link,
+                detector="EXIF",
+                confidence=0.85,
+                evidence=link,
             )
         )
     return link, findings
@@ -904,6 +904,9 @@ def run_entropy(image_bgr, path: str) -> Tuple[Optional[float], List[Finding]]:
                 severity="Medium",
                 summary="Trailing data detected",
                 details=f"Trailing bytes: {trailing}",
+                detector="TRAILING_BYTES",
+                confidence=0.7,
+                evidence=f"Trailing bytes: {trailing}",
             )
         )
     if image_bgr is None or not shannon_entropy:
@@ -927,6 +930,9 @@ def run_entropy(image_bgr, path: str) -> Tuple[Optional[float], List[Finding]]:
                 severity="Medium",
                 summary="Suspected steganography / high noise",
                 details=" | ".join(details_parts),
+                detector="ENTROPY",
+                confidence=0.72,
+                evidence=" | ".join(details_parts),
             )
         )
     return entropy, findings
@@ -1485,6 +1491,74 @@ def collect_images(root: str) -> List[str]:
     return sorted(files)
 
 
+def sha256_file(path: str, chunk_size: int = 1024 * 1024) -> Optional[str]:
+    hasher = hashlib.sha256()
+    try:
+        with open(path, "rb") as handle:
+            while True:
+                chunk = handle.read(chunk_size)
+                if not chunk:
+                    break
+                hasher.update(chunk)
+        return hasher.hexdigest()
+    except Exception:
+        return None
+
+
+def load_scan_cache(cache_path: str) -> Dict[str, Dict[str, Any]]:
+    if not os.path.exists(cache_path):
+        return {}
+    try:
+        with open(cache_path, "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+        if isinstance(data, dict):
+            return data
+    except Exception:
+        pass
+    return {}
+
+
+def save_scan_cache(cache_path: str, cache: Dict[str, Dict[str, Any]]):
+    try:
+        with open(cache_path, "w", encoding="utf-8") as handle:
+            json.dump(cache, handle, indent=2)
+    except Exception:
+        pass
+
+
+def evidence_item_from_dict(payload: Dict[str, Any]) -> EvidenceItem:
+    findings = [Finding(**entry) for entry in payload.get("findings", [])]
+    return EvidenceItem(
+        path=payload.get("path", ""),
+        rel_path=payload.get("rel_path", ""),
+        findings=findings,
+        ocr_snippet=payload.get("ocr_snippet"),
+        qr_data=payload.get("qr_data"),
+        vision_objects=payload.get("vision_objects", []),
+        vision_labels=payload.get("vision_labels", []),
+        geoint_link=payload.get("geoint_link"),
+        entropy=payload.get("entropy"),
+        stego_payload=payload.get("stego_payload"),
+        stego_message=payload.get("stego_message"),
+        stego_reason=payload.get("stego_reason"),
+        stego_artifact_path=payload.get("stego_artifact_path"),
+        stego_artifact_thumbnail=payload.get("stego_artifact_thumbnail"),
+        stego_ocr=payload.get("stego_ocr"),
+        yolo_labels=payload.get("yolo_labels", []),
+    )
+
+
+def enrich_findings(items: List[EvidenceItem]):
+    for item in items:
+        for finding in item.findings:
+            if finding.confidence is None:
+                finding.confidence = DEFAULT_CONFIDENCE.get(finding.severity, 0.5)
+            if not finding.detector:
+                finding.detector = finding.module
+            if not finding.evidence:
+                finding.evidence = (finding.details or finding.summary or "")[:240]
+
+
 def preflight_checks(yolo_model: str) -> Dict[str, bool]:
     creds_path = resolve_credentials_path()
     status = {
@@ -1534,9 +1608,10 @@ def print_preflight(status: Dict[str, bool], yolo_model: str):
                 "Vision disabled: GOOGLE_APPLICATION_CREDENTIALS is empty.",
             )
         else:
+            redacted = os.path.basename(creds_value) if creds_value else "configured path"
             print_status(
                 "[WARN]",
-                f"Vision disabled: credentials not found at {creds_value}.",
+                f"Vision disabled: credentials file not found ({redacted}).",
             )
     if not status["stego"]:
         print_status("[WARN]", "Stego disabled: install scikit-image.")
@@ -1545,12 +1620,18 @@ def print_preflight(status: Dict[str, bool], yolo_model: str):
 def run_scan(
     root: str,
     report_path: str,
+    report_json_path: Optional[str],
     bip39_path: Optional[str],
     yolo_model: str,
     yolo_conf: float,
     yolo_imgsz: int,
     vision_score: float,
     use_vision: bool,
+    include_patterns: List[str],
+    exclude_patterns: List[str],
+    min_severity: str,
+    workers: int,
+    use_cache: bool,
     debug: bool,
 ):
     if colorama_init:
@@ -1560,91 +1641,134 @@ def run_scan(
     vision_enabled = use_vision and status["vision"]
     bip39_words = load_bip39(bip39_path)
     yolo_model_instance = load_yolo(yolo_model) if status["yolo"] else None
-    files = collect_images(root)
+
+    def scan_path(path: str) -> EvidenceItem:
+        return analyze_file(
+            path=path,
+            report_path=report_path,
+            status=status,
+            bip39_words=bip39_words,
+            vision_enabled=vision_enabled,
+            vision_score=vision_score,
+            yolo_model_instance=yolo_model_instance,
+            yolo_conf=yolo_conf,
+            yolo_imgsz=yolo_imgsz,
+            debug=debug,
+            print_status=print_status,
+            red_color=Fore.RED if Fore else None,
+            green_color=Fore.GREEN if Fore else None,
+            callbacks={
+                "load_image_cv2": load_image_cv2,
+                "run_ocr": run_ocr,
+                "run_qr": run_qr,
+                "run_vision": run_vision,
+                "run_yolo": run_yolo,
+                "run_geoint": run_geoint,
+                "run_entropy": run_entropy,
+                "run_stego_decode": run_stego_decode,
+                "image_to_thumbnail": image_to_thumbnail,
+                "ocr_image_path": ocr_image_path,
+            },
+        )
+
+    all_files = collect_images(root)
+    files: List[str] = []
+    for path in all_files:
+        rel_to_root = os.path.relpath(path, root)
+        if path_allowed(rel_to_root, include_patterns, exclude_patterns):
+            files.append(path)
     print_status("[INFO]", f"Scanning {len(files)} image(s) in {root}")
-    items: List[EvidenceItem] = []
+
+    # Cache stores analysis by content hash so duplicates and reruns are faster.
+    cache_path = os.path.join(os.path.dirname(report_path), ".vigil_cache.json")
+    scan_cache = load_scan_cache(cache_path) if use_cache else {}
+    file_hashes: Dict[str, Optional[str]] = {path: sha256_file(path) for path in files}
+    unique_paths: List[str] = []
+    hash_owner: Dict[str, str] = {}
     for path in files:
-        rel_path = os.path.relpath(path, os.path.dirname(report_path))
-        item = EvidenceItem(path=path, rel_path=rel_path)
-        image_bgr = load_image_cv2(path)
+        h = file_hashes.get(path)
+        if h and h in hash_owner:
+            continue
+        if h:
+            hash_owner[h] = path
+        unique_paths.append(path)
 
-        ocr_snippet, ocr_findings = run_ocr(image_bgr, bip39_words, status["ocr"])
-        item.ocr_snippet = ocr_snippet
-        item.findings.extend(ocr_findings)
-
-        # Always try QR detection (OpenCV fallback works without pyzbar)
-        qr_data, qr_findings = run_qr(image_bgr)
-        item.qr_data = qr_data
-        item.findings.extend(qr_findings)
-
-        if vision_enabled:
-            vision_qr, vision_objects, vision_labels, vision_findings = run_vision(
-                path,
-                min_score=vision_score,
-                debug=debug,
-            )
-            # Use Vision QR if local QR detection didn't find anything
-            if vision_qr and not item.qr_data:
-                item.qr_data = vision_qr
-            item.vision_objects = vision_objects
-            item.vision_labels = vision_labels
-            item.findings.extend(vision_findings)
+    unique_items: Dict[str, EvidenceItem] = {}
+    cache_hits = 0
+    work_paths: List[str] = []
+    for path in unique_paths:
+        h = file_hashes.get(path)
+        cached = scan_cache.get(h, {}) if h else {}
+        if cached:
+            item = evidence_item_from_dict(cached)
+            item.path = path
+            item.rel_path = os.path.relpath(path, os.path.dirname(report_path))
+            unique_items[path] = item
+            cache_hits += 1
         else:
-            labels, yolo_findings = run_yolo(yolo_model_instance, path, yolo_conf, yolo_imgsz)
-            item.yolo_labels = labels
-            item.findings.extend(yolo_findings)
+            work_paths.append(path)
 
-        geoint_link, geoint_findings = run_geoint(path)
-        item.geoint_link = geoint_link
-        item.findings.extend(geoint_findings)
+    if workers > 1 and len(work_paths) > 1:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = {pool.submit(scan_path, path): path for path in work_paths}
+            for future in as_completed(futures):
+                path = futures[future]
+                try:
+                    item = future.result()
+                except Exception as exc:
+                    rel_path = os.path.relpath(path, os.path.dirname(report_path))
+                    item = EvidenceItem(path=path, rel_path=rel_path)
+                    item.findings.append(
+                        Finding(
+                            module="ENGINE",
+                            severity="Low",
+                            summary="Scan error",
+                            details=str(exc),
+                            detector="SCANNER",
+                            confidence=0.4,
+                            evidence="exception",
+                        )
+                    )
+                unique_items[path] = item
+    else:
+        for path in work_paths:
+            unique_items[path] = scan_path(path)
 
-        entropy, entropy_findings = run_entropy(image_bgr if status["stego"] else None, path)
-        item.entropy = entropy
-        item.findings.extend(entropy_findings)
-
-        stego_payload, stego_message, stego_reason, stego_findings, stego_artifact = run_stego_decode(path)
-        item.stego_payload = stego_payload
-        item.stego_message = stego_message
-        item.stego_reason = stego_reason
-        item.findings.extend(stego_findings)
-        item.stego_artifact_path = stego_artifact
-        if stego_artifact:
-            item.stego_artifact_thumbnail = image_to_thumbnail(stego_artifact)
-            ocr_text = ocr_image_path(stego_artifact)
-            item.stego_ocr = ocr_text
-            # If we got text from the extracted artifact, prioritize it as the main message
-            if ocr_text and not item.stego_message:
-                item.stego_message = ocr_text[:300]
-                item.stego_reason = f"Hidden text extracted and decoded from embedded file: {os.path.basename(stego_artifact)}"
-        if stego_findings:
-            for finding in stego_findings:
-                print_status(
-                    "[CRITICAL]",
-                    f"{path} -> {finding.summary} (see report)",
-                    Fore.RED if Fore else None,
-                )
-
-        if item.findings:
-            print_status("[FOUND]", f"{path} -> {item.top_severity}", Fore.RED if Fore else None)
-        else:
-            print_status("[CLEAN]", path, Fore.GREEN if Fore else None)
-        if debug:
-            print_status(
-                "[DEBUG]",
-                f"OCR:{bool(ocr_findings)} QR:{bool(qr_data)} VISION:{len(item.vision_objects)} "
-                f"LABELS:{len(item.vision_labels)} YOLO:{len(item.yolo_labels)} GEO:{bool(geoint_link)} "
-                f"STEGO:{entropy} DECODE:{bool(stego_payload)}",
-            )
-            if item.vision_labels and not item.vision_objects:
-                print_status("[DEBUG]", f"Vision labels: {', '.join(item.vision_labels[:6])}")
-
+    items: List[EvidenceItem] = []
+    duplicate_count = 0
+    for path in files:
+        h = file_hashes.get(path)
+        if h and h in hash_owner and hash_owner[h] != path:
+            duplicate_count += 1
+        source_path = hash_owner.get(h, path) if h else path
+        source_item = unique_items.get(source_path)
+        if not source_item:
+            continue
+        item = copy.deepcopy(source_item)
+        item.path = path
+        item.rel_path = os.path.relpath(path, os.path.dirname(report_path))
+        item = apply_min_severity(item, min_severity)
         items.append(item)
+        if h:
+            scan_cache[h] = asdict(source_item)
 
-    generate_report(report_path, root, items)
+    enrich_findings(items)
+    summary = build_summary(items)
+
+    if use_cache:
+        save_scan_cache(cache_path, scan_cache)
+    print_status("[INFO]", f"Cache hits: {cache_hits}, duplicate files: {duplicate_count}")
+
+    generate_report(report_path, root, items, summary)
+    if report_json_path:
+        generate_json_report(report_json_path, root, items, summary)
+
     print_status("[DONE]", f"Report saved to {report_path}", Fore.CYAN if Fore else None)
+    if report_json_path:
+        print_status("[DONE]", f"JSON saved to {report_json_path}", Fore.CYAN if Fore else None)
 
 
-def generate_report(report_path: str, root: str, items: List[EvidenceItem]):
+def generate_report(report_path: str, root: str, items: List[EvidenceItem], summary: Dict[str, Dict[str, int]]):
     if not Environment:
         print_status("[WARN]", "Jinja2 not installed, skipping HTML report.")
         return
@@ -1656,6 +1780,19 @@ def generate_report(report_path: str, root: str, items: List[EvidenceItem]):
     template = env.get_template("report.html.j2")
     threats = sum(1 for item in items if item.findings)
     locations = sum(1 for item in items if item.geoint_link)
+    timeline = []
+    for item in items:
+        for finding in item.findings:
+            timeline.append(
+                {
+                    "file": item.rel_path,
+                    "module": finding.module,
+                    "severity": finding.severity,
+                    "summary": finding.summary,
+                    "confidence": round(float(finding.confidence or 0), 2),
+                }
+            )
+    timeline.sort(key=lambda row: SEVERITY_ORDER.get(row["severity"], 0), reverse=True)
     # Convert items to dictionaries for JSON serialization in template
     items_as_dicts = [asdict(item) for item in items]
     # Add top_severity (property) and thumbnail (generated on demand) to each dict
@@ -1668,10 +1805,31 @@ def generate_report(report_path: str, root: str, items: List[EvidenceItem]):
         files_scanned=len(items),
         threats=threats,
         locations=locations,
+        summary=summary,
+        timeline=timeline,
         items=items_as_dicts,
     )
     with open(report_path, "w", encoding="utf-8") as handle:
         handle.write(html)
+
+
+def generate_json_report(
+    report_json_path: str,
+    root: str,
+    items: List[EvidenceItem],
+    summary: Dict[str, Dict[str, int]],
+):
+    payload = {
+        "generated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "root": root,
+        "files_scanned": len(items),
+        "threats": sum(1 for item in items if item.findings),
+        "locations": sum(1 for item in items if item.geoint_link),
+        "summary": summary,
+        "items": [asdict(item) for item in items],
+    }
+    with open(report_json_path, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2)
 
 
 def parse_args() -> argparse.Namespace:
@@ -1686,6 +1844,11 @@ def parse_args() -> argparse.Namespace:
         "--report",
         default="report.html",
         help="Output HTML report path",
+    )
+    parser.add_argument(
+        "--report-json",
+        default="report.json",
+        help="Output JSON report path (default: report.json)",
     )
     parser.add_argument(
         "--bip39",
@@ -1722,6 +1885,36 @@ def parse_args() -> argparse.Namespace:
         help="Use Google Vision API when available (default: true)",
     )
     parser.add_argument(
+        "--include",
+        action="append",
+        default=[],
+        help="Glob include filter relative to scan root (repeatable)",
+    )
+    parser.add_argument(
+        "--exclude",
+        action="append",
+        default=[],
+        help="Glob exclude filter relative to scan root (repeatable)",
+    )
+    parser.add_argument(
+        "--min-severity",
+        choices=["Low", "Medium", "High", "Critical"],
+        default="Low",
+        help="Only keep findings at or above this severity in reports",
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Number of worker threads for image analysis (default: 1)",
+    )
+    parser.add_argument(
+        "--cache",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Reuse cached results by file hash (default: true)",
+    )
+    parser.add_argument(
         "--debug",
         action="store_true",
         help="Print per-image module debug info",
@@ -1740,12 +1933,18 @@ def main() -> int:
     run_scan(
         args.path,
         args.report,
+        args.report_json,
         args.bip39,
         args.yolo,
         args.yolo_conf,
         args.yolo_imgsz,
         args.vision_score,
         args.vision,
+        args.include,
+        args.exclude,
+        args.min_severity,
+        max(1, args.workers),
+        args.cache,
         args.debug,
     )
     return 0
