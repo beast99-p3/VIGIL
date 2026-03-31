@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from main import run_scan
+from vigil.scan import run_scan
 
 
 @pytest.mark.integration

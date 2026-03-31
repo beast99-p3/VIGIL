@@ -1,4 +1,4 @@
-from main import looks_like_crypto, looks_like_url
+from vigil.utils import looks_like_crypto, looks_like_url
 
 
 def test_looks_like_url():
